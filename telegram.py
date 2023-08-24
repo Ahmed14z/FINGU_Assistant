@@ -15,9 +15,9 @@ load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 # Clarifai settings
-PAT = '3f729bcc55744f14bfce2b67e56e3610'
-USER_ID = 'ahmedz'
-APP_ID = 'FINGU'
+PAT = PAT
+USER_ID = USERID
+APP_ID = APPID
 WORKFLOW_ID = 'workflow-ad5299'
 
 # Set up the Telegram bot
