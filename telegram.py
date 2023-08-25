@@ -29,10 +29,15 @@ metadata = (('authorization', 'Key ' + PAT),)
 # Function to generate response using Clarifai
 def generate_response_clarifai(prompt):
     # Define the role and purpose of the model in the prompt
-    role_prompt = (
+   role_prompt = (
+        "<s>[INST] <<SYS> \n>"
         "You are FINGU Financial Assistant.\n"
-        "Your role is to provide useful and practical financial advice, and you can assist in creating financial plans.\n"
-        "User Query: " + prompt
+        "Your role is to provide useful and practical financial advice, and you can assist in creating financial plans.\n" 
+        "You should respond wihin context only\n"
+        "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature."
+        # "You will receive questions and you should answer them normally without specifying your role and my role.\n"
+        "If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n"
+        "<</SYS>>" + prompt + " [/INST]"
     )
 
     userDataObject = resources_pb2.UserAppIDSet(user_id=USER_ID, app_id=APP_ID)
