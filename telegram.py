@@ -5,18 +5,32 @@ from clarifai_grpc.grpc.api import resources_pb2, service_pb2, service_pb2_grpc
 from clarifai_grpc.grpc.api.status import status_code_pb2
 from dotenv import load_dotenv
 import asyncio
+from langchain.llms import Clarifai
+from getpass import getpass
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.chains import ConversationChain
 
-# Load environment variables
+
+
 load_dotenv()
 
-# Telegram bot token
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_TOKEN = "6574676364:AAERvpXvrbcfarQ97PdiOKTkISnQJxSYnco"
+memory = ConversationBufferWindowMemory(k=1)
 
 # Clarifai settings
-PAT = 'PAT'
-USER_ID = 'ID'
-APP_ID = 'APP'
-WORKFLOW_ID = 'workflow'
+PAT = '3f729bcc55744f14bfce2b67e56e3610'
+USER_ID = 'ahmedz'
+APP_ID = 'FINGU'
+WORKFLOW_ID = 'workflow-ad5299'
+# CLARIFAI_PAT = getpass()
+llm = Clarifai(pat=PAT, user_id='meta', app_id='Llama-2', model_id='llama2-7b-chat')
+conversation_with_summary = ConversationChain(
+    llm=llm(temperature=0), 
+    # We set a low k=2, to only keep the last 2 interactions in memory
+    memory=ConversationBufferWindowMemory(k=2), 
+    verbose=True
+)
+# Initialize LangChain components
 
 # Set up the Telegram bot
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -26,10 +40,12 @@ channel = ClarifaiChannel.get_grpc_channel()
 stub = service_pb2_grpc.V2Stub(channel)
 metadata = (('authorization', 'Key ' + PAT),)
 
+
 # Function to generate response using Clarifai
 def generate_response_clarifai(prompt):
     # Define the role and purpose of the model in the prompt
-   role_prompt = (
+  
+    role_prompt = (
         "<s>[INST] <<SYS> \n>"
         "You are FINGU Financial Assistant.\n"
         "Your role is to provide useful and practical financial advice, and you can assist in creating financial plans.\n" 
@@ -95,5 +111,7 @@ async def handle_clarifai_response(bot, message, input_text):
     response = await asyncio.to_thread(generate_response_clarifai, input_text)
     bot.reply_to(message, response)
 
+
 # Start the bot's polling loop
 bot.infinity_polling()
+
