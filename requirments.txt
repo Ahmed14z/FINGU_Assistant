@@ -1,5 +1,5 @@
-streamlit
-replicate
-clarifai_grpc.channel.clarifai_channel
-clarifai_grpc.grpc.api
-streamlit_chat
+asyncio
+clarifai
+pandas
+python-telegram-bot
+python-dotenv
