@@ -16,7 +16,7 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 PAT = 'PAT'
 USER_ID = 'ID'
 APP_ID = 'APP'
-WORKFLOW_ID = 'workflow-ad5299'
+WORKFLOW_ID = 'workflow'
 
 # Set up the Telegram bot
 bot = telebot.TeleBot(BOT_TOKEN)
