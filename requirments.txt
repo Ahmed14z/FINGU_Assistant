@@ -1,5 +1,5 @@
-asyncio
 clarifai
-pandas
-python-telegram-bot
 python-dotenv
+langchain
+spacy
+python-telegram-bot
