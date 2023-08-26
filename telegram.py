@@ -21,10 +21,21 @@ load_dotenv()
 nlp = spacy.load("en_core_web_sm")
 
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-PAT = os.getenv("PAT")
-USER_ID = os.getenv("USER_ID")
-APP_ID = os.getenv("APP_ID")
+BOT_TOKEN = "6574676364:AAERvpXvrbcfarQ97PdiOKTkISnQJxSYnco"
+
+# Clarifai settings
+PAT = '3f729bcc55744f14bfce2b67e56e3610'
+USER_ID = 'ahmedz'
+APP_ID = 'FINGU'
+WORKFLOW_ID = 'workflow-ad5299'
+
+commands = [
+    telebot.types.BotCommand(command="/start", description="Start the bot"),
+    telebot.types.BotCommand(command="/csv", description="Convert message to CSV"),
+]
+bot = telebot.TeleBot(BOT_TOKEN)
+bot.set_my_commands(commands)
+
 
 WORKFLOW_ID = 'workflow-ad5299'
 # CLARIFAI_PAT = getpass()
