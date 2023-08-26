@@ -1,2 +1,15 @@
-[requires]
-python_version = "3.9"
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "./telegram.py",
+            "use": "@vercel/python"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "/"
+        }
+    ]
+}
