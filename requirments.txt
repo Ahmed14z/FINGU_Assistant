@@ -3,3 +3,4 @@ python-dotenv
 langchain
 spacy
 python-telegram-bot
+telebot
