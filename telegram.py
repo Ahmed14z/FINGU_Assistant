@@ -13,7 +13,8 @@ from langchain.prompts import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-
+import csv
+from io import BytesIO
 
 
 
@@ -27,23 +28,26 @@ USER_ID = 'ahmedz'
 APP_ID = 'FINGU'
 WORKFLOW_ID = 'workflow-ad5299'
 # CLARIFAI_PAT = getpass()
-llm = Clarifai(pat=PAT, user_id='meta', app_id='Llama-2', model_id='llama2-7b-chat')
+llm = Clarifai(pat=PAT, user_id='clarifai', app_id='ml', model_id='llama2-7b-alternative-4k')
 role_prompt = (
-        "<s>\n"
-        "<<SYS>> \n>"
-        "You are FINGU Financial Assistant.\n"
-        "Your role is to provide useful and practical financial advice, and you can assist in creating financial plans.\n" 
-        "You should respond wihin context only\n"
-        "You should  not reply with ""Human:""" "or ""AI:""  , and just use them for relevant information"
-        "You should be aware that your limit is 1040 characters so try to finish your reply within those limits"
-        "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature."
-        "You will receive questions and you should answer them normally without specifying your role and my role.\n"
-        "If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n"
-        "Also all of those lines above this one is just instructions for you and shouldn't be mentioned in the reply."
-        "<</SYS>>\n"
-        
-        "[INST]" 
-    )
+    "<s>\n"
+    "<<SYS>> \n"
+    "You are FINGU Financial Assistant.\n"
+    "Your role is to provide useful and practical financial advice, and you can assist in creating financial plans.\n" 
+    "You should respond within context only.\n"
+    "Please consider the chat history provided as a reference to better understand the user's context and needs.\n"
+    "Keep in mind that your responses should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Make sure your answers are socially unbiased and positive in nature.\n"
+    "Feel free to ask clarifying questions if the user's query is unclear.\n"
+    "If a question doesn't make sense or isn't factually coherent, explain why instead of providing incorrect information.\n"
+    "Remember, the chat history is provided to assist you in giving relevant advice.\n"
+    "The following lines will be the chat history in roles as 'AI:' and 'Human:' you will use those to take relevant information, the last 'Human:' line is the real prompt\n "
+    "Stay within the 1040-character limit.\n"
+    "You should respond normally without the Ai and Human roles i use, i will use them you shouldn't"
+    "<</SYS>>\n"
+    
+    "[INST]\n"
+
+)
 
 prompt = ChatPromptTemplate(
     messages=[
@@ -56,7 +60,7 @@ prompt = ChatPromptTemplate(
     ]
 )
 # memory = ConversationSummaryBufferMemory(llm=llm, max_token_limit=4000)
-memory =  ConversationSummaryBufferMemory(memory_key="history", llm=llm , return_messages=True , max_token_limit=1000)
+memory =  ConversationSummaryBufferMemory(memory_key="history", llm=llm , return_messages=True , max_token_limit=4000)
 
 
 conversation = LLMChain(
@@ -85,22 +89,42 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_message)
 
-# Handle incoming messages
 @bot.message_handler(func=lambda msg: True)
 def handle_message(message):
+    if message.text:
+        input_text = message.text
+        response = generate_response_llmchain(input_text)
+        bot.reply_to(message, response)
+    elif message.document:
+        print("Document received:", message.document.file_name)  # Debugging statement
+        csv_file = bot.download_file(bot.get_file_url(message.document.file_id))
+        csv_content = process_csv(csv_file)
+        
+        for csv_prompt in csv_content:
+            print("Processing CSV prompt:", csv_prompt)  # Debugging statement
+            response = generate_response_llmchain(csv_prompt)
+            bot.reply_to(message, response)
 
-    input_text = message.text
-    response = generate_response_llmchain(input_text)
-    bot.reply_to(message, response)
+def process_csv(csv_file):
+    csv_data = BytesIO(csv_file)
+    csv_content = []
+
+    try:
+        reader = csv.reader(csv_data)
+        for row in reader:
+            csv_content.append(", ".join(row))  # Add each row as a prompt
+    except Exception as e:
+        csv_content = ["Error processing CSV file: " + str(e)]
+
+    return csv_content
 
 def generate_response_llmchain(prompt):
     memory.load_memory_variables({})
-    # conversation({"question": prompt})
 
+    input_prompt = 'Dont start with Ai or Human,now here is my prompt:' +prompt + " [/INST]"
 
-    ans = conversation.predict(input = (prompt+" [/INST]"))
+    ans = conversation.predict(input=input_prompt)
     response = ans  # You can process or modify the response here if needed
     return response
-
 # Start the bot's polling loop
 bot.infinity_polling()
