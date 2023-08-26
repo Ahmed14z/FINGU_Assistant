@@ -23,11 +23,7 @@ from spacy.matcher import Matcher
 load_dotenv()
 nlp = spacy.load("en_core_web_sm")
 
-BOT_TOKEN = "6574676364:AAERvpXvrbcfarQ97PdiOKTkISnQJxSYnco"
-
-# Clarifai settings
-PAT = '3f729bcc55744f14bfce2b67e56e3610'
-USER_ID = 'ahmedz'
+# 
 APP_ID = 'FINGU'
 WORKFLOW_ID = 'workflow-ad5299'
 # CLARIFAI_PAT = getpass()
