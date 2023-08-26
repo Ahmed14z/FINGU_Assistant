@@ -1,7 +1,6 @@
-python_version>=3.9
-pyTelegramBotAPI==3.8.2  # Adjust version as needed
-clarifai-grpc==2.0.5  # Example version, adjust as needed
-dotenv==0.19.1  # Example version, adjust as needed
-langchain==1.0.0  # Example version, adjust as needed
-spacy==3.0.6  # Example version, adjust as needed
+python-telegram-bot
+clarifai
+langchain
+spacy
 telebot
+transformers
