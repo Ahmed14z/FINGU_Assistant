@@ -1,4 +1,3 @@
-import os
 import telebot
 from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
 from clarifai_grpc.grpc.api import  service_pb2_grpc
@@ -14,17 +13,19 @@ from langchain.prompts import (
     HumanMessagePromptTemplate,
 )
 import csv
-from io import BytesIO
 import spacy
-from spacy.matcher import Matcher
-
+import os
 
 
 load_dotenv()
 nlp = spacy.load("en_core_web_sm")
 
-# 
-APP_ID = 'FINGU'
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+PAT = os.getenv("PAT")
+USER_ID = os.getenv("USER_ID")
+APP_ID = os.getenv("APP_ID")
+
 WORKFLOW_ID = 'workflow-ad5299'
 # CLARIFAI_PAT = getpass()
 llm = Clarifai(pat=PAT, user_id='clarifai', app_id='ml', model_id='llama2-7b-alternative-4k')
