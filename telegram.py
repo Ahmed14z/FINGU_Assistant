@@ -15,10 +15,13 @@ from langchain.prompts import (
 )
 import csv
 from io import BytesIO
+import spacy
+from spacy.matcher import Matcher
 
 
 
 load_dotenv()
+nlp = spacy.load("en_core_web_sm")
 
 BOT_TOKEN = "6574676364:AAERvpXvrbcfarQ97PdiOKTkISnQJxSYnco"
 
@@ -42,6 +45,7 @@ role_prompt = (
     "Remember, the chat history is provided to assist you in giving relevant advice.\n"
     "The following lines will be the chat history in roles as 'AI:' and 'Human:' you will use those to take relevant information, the last 'Human:' line is the real prompt\n "
     "Stay within the 1040-character limit.\n"
+    "If user asks to respond with csv file or needs something formatted as csv mention that he should use /csv command And always type any csv list formatted as csv \n "
     "You should respond normally without the Ai and Human roles i use, i will use them you shouldn't"
     "<</SYS>>\n"
     
@@ -76,8 +80,44 @@ bot = telebot.TeleBot(BOT_TOKEN)
 channel = ClarifaiChannel.get_grpc_channel()
 stub = service_pb2_grpc.V2Stub(channel)
 metadata = (('authorization', 'Key ' + PAT),)
+# Function to save the LLMChain response to a CSV file
+def save_response_to_csv(response_text):
+    lines = response_text.split('\n')
+
+    # Initialize variables
+    data = []
+    header = None
+    separator = None
+
+    for line in lines:
+        line = line.strip()
+        if line.startswith('|') or line.startswith('.'):
+            if separator is None:
+                separator = '|' if '|' in line else '.'
+            cells = [cell.strip() for cell in line.split(separator)]
+            if len(cells) >= 2:
+                if header is None:
+                    header = cells[1]
+                data.append(cells[1:])  # Extract all cells
+
+    if header is not None:
+        with open('response.csv', 'w', newline='', encoding='utf-8') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow([header])  # Write header
+            csvwriter.writerows(data)  # Write data
 
 
+@bot.message_handler(commands=['csv'])
+def save_response_as_csv(message):
+    if message.reply_to_message and message.reply_to_message.text:
+        input_prompt = message.reply_to_message.text
+        response = generate_response_llmchain(input_prompt)
+        
+        save_response_to_csv(response)
+        
+        # Send the CSV file with the LLMChain response
+        with open('response.csv', 'rb') as csv_file:
+            bot.send_document(message.chat.id, csv_file)
 
 # Handle start and hello commands
 @bot.message_handler(commands=['start', 'hello'])
@@ -95,28 +135,8 @@ def handle_message(message):
         input_text = message.text
         response = generate_response_llmchain(input_text)
         bot.reply_to(message, response)
-    elif message.document:
-        print("Document received:", message.document.file_name)  # Debugging statement
-        csv_file = bot.download_file(bot.get_file_url(message.document.file_id))
-        csv_content = process_csv(csv_file)
-        
-        for csv_prompt in csv_content:
-            print("Processing CSV prompt:", csv_prompt)  # Debugging statement
-            response = generate_response_llmchain(csv_prompt)
-            bot.reply_to(message, response)
 
-def process_csv(csv_file):
-    csv_data = BytesIO(csv_file)
-    csv_content = []
 
-    try:
-        reader = csv.reader(csv_data)
-        for row in reader:
-            csv_content.append(", ".join(row))  # Add each row as a prompt
-    except Exception as e:
-        csv_content = ["Error processing CSV file: " + str(e)]
-
-    return csv_content
 
 def generate_response_llmchain(prompt):
     memory.load_memory_variables({})
