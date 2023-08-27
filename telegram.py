@@ -14,17 +14,23 @@ from langchain.prompts import (
 import csv
 import spacy
 import re
+from dotenv import load_dotenv
 
 
 nlp = spacy.load("en_core_web_sm")
 
 
-BOT_TOKEN = "6574676364:AAERvpXvrbcfarQ97PdiOKTkISnQJxSYnco"
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Telegram settings
+BOT_TOKEN = os.environ.get("BOT_TOKEN")  # Set your bot token as an environment variable
 
 # Clarifai settings
-PAT = '3f729bcc55744f14bfce2b67e56e3610'
-USER_ID = 'ahmedz'
-APP_ID = 'FINGU'
+PAT = os.environ.get("CLARIFAI_PAT")  # Set your Clarifai PAT as an environment variable
+USER_ID = os.environ.get("USER_ID")  # Set your user ID as an environment variable
+APP_ID = os.environ.get("APP_ID")  # 
 WORKFLOW_ID = 'workflow-ad5299'
 bot = telebot.TeleBot(BOT_TOKEN)
 
