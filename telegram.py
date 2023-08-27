@@ -13,7 +13,7 @@ from langchain.prompts import (
 )
 import csv
 import spacy
-import os
+import re
 
 
 nlp = spacy.load("en_core_web_sm")
@@ -26,12 +26,16 @@ PAT = '3f729bcc55744f14bfce2b67e56e3610'
 USER_ID = 'ahmedz'
 APP_ID = 'FINGU'
 WORKFLOW_ID = 'workflow-ad5299'
+bot = telebot.TeleBot(BOT_TOKEN)
 
 commands = [
     telebot.types.BotCommand(command="/start", description="Start the bot"),
-    telebot.types.BotCommand(command="/csv", description="Convert message to CSV"),
+    # telebot.types.BotCommand(command="/csv", description="Convert message to CSV"),
+    telebot.types.BotCommand(command="/newchat", description="Clear chat memory"),
+
 ]
-bot = telebot.TeleBot(BOT_TOKEN)
+
+
 bot.set_my_commands(commands)
 
 
@@ -44,24 +48,25 @@ role_prompt = (
     "You are FINGU Financial Assistant.\n"
     "Your top goal is to improve user's finances.\n"
     "Your personality will adapt to the situation.\n"
-    "Please consider the chat history provided as a reference to better understand the user's context and needs.\n"
     "Keep in mind that your responses should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Make sure your answers are socially unbiased and positive in nature.\n"
     "If a question doesn't make sense or isn't factually coherent, explain why instead of providing incorrect information.\n"
     "Remember, the chat history is provided to assist you in giving relevant advice.\n"
     "The following lines will be the chat history in roles as 'AI:' and 'Human:' you will use those to take relevant information, the last 'Human:' line is the real prompt\n "
-    "You should respond normally without the Ai and Human roles i use, i will use them you shouldn't.\n"
-    "You will always use csv format if you see the keyword csv.\n "
+    # "You should respond normally without the Ai and Human roles i use, i will use them you shouldn't.\n"
+    "The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it truthfully says it does not know."
+    "The ai will always use csv format if it sees the keyword csv.\n "
+
     "<</SYS>>\n"
-    
+
     "[INST]\n"
 
 )
-
 
 # memory = ConversationSummaryBufferMemory(llm=llm, max_token_limit=4000)
 
 # Set up the Telegram bot
 bot = telebot.TeleBot(BOT_TOKEN)
+user_memories = {}
 
 # Set up the Clarifai channel
 channel = ClarifaiChannel.get_grpc_channel()
@@ -78,9 +83,9 @@ def save_response_to_csv(response_text):
 
     for line in lines:
         line = line.strip()
-        if line.startswith('|') or line.startswith('.'):
+        if line.startswith('|') or line.startswith(','):
             if separator is None:
-                separator = '|' if '|' in line else '.'
+                separator = '|' if '|' in line else ','
             cells = [cell.strip() for cell in line.split(separator)]
             if len(cells) >= 2:
                 if header is None:
@@ -93,16 +98,24 @@ def save_response_to_csv(response_text):
             csvwriter.writerow([header])  # Write header
             csvwriter.writerows(data)  # Write data
 
-user_memories = {}
+
+@bot.message_handler(commands=['newchat'])
+def clear_memory(message):
+    user_id = message.from_user.id
+    if user_id in user_memories:
+        user_memories[user_id].clear()
+        bot.reply_to(message, "Chat memory cleared. You can start a new conversation.")
+    else:
+        bot.reply_to(message, "No chat memory found.")
 
 @bot.message_handler(commands=['csv'])
 def save_response_as_csv(message):
     if message.reply_to_message and message.reply_to_message.text:
         input_prompt = message.reply_to_message.text
         # response = generate_response_llmchain(input_prompt)
-        
+
         save_response_to_csv(input_prompt)
-        
+
         # Send the CSV file with the LLMChain response
         with open('response.csv', 'rb') as csv_file:
             bot.send_document(message.chat.id, csv_file)
@@ -110,7 +123,7 @@ def save_response_as_csv(message):
 # Handle start and hello commands
 @bot.message_handler(commands=['start', 'hello'])
 def send_welcome(message):
-    
+
     welcome_message = (
         "Welcome to FINGU Financial Assistant!\n"
         "I'm here to help you with financial queries.\n"
@@ -120,16 +133,17 @@ def send_welcome(message):
 
 @bot.message_handler(func=lambda msg: True)
 def handle_message(message):
-    user_id = message.from_user.id 
-    
+    user_id = message.from_user.id
+
     if user_id not in user_memories:
-        user_memories[user_id] = ConversationSummaryBufferMemory(memory_key=user_id, llm=llm, return_messages=True, max_token_limit=4000)
-    
+        user_memories[user_id] = ConversationSummaryBufferMemory(ai_prefix="",human_prefix="",memory_key=user_id, llm=llm, return_messages=True, max_token_limit=4000)
+
     memory = user_memories[user_id]
     # memory =  ConversationSummaryBufferMemory(memory_key=user_id, llm=llm , return_messages=True , max_token_limit=4000)
 
-    prompt = ChatPromptTemplate(    
+    prompt = ChatPromptTemplate(
     messages=[
+
         SystemMessagePromptTemplate.from_template(
             role_prompt
         ),
@@ -148,8 +162,27 @@ def handle_message(message):
     if message.text:
         input_text = message.text
         response = generate_response_llmchain(input_text,conversation,memory)
-        bot.reply_to(message, response)
-    
+
+        # Check if the response contains the keyword "csv"
+        if contains_csv_keyword(response):
+            save_response_to_csv(response)
+            # Send the CSV file with the LLMChain response
+            with open('response.csv', 'rb') as csv_file:
+                bot.reply_to(message, response)
+
+                bot.send_document(message.chat.id, csv_file)
+
+        else:
+            bot.reply_to(message, response)
+
+def contains_csv_keyword(response_text):
+    return response_text.count('|') >= 4
+
+
+
+
+
+
 
 
 
@@ -175,12 +208,18 @@ def process_uploaded_csv(file_id, user_id):
 
     # Convert the CSV content to text format
     csv_text = downloaded_file.decode('utf-8')
+    # Truncate the CSV text to a maximum of 1000 characters
+     # Remove date and time formats using regular expressions
+    csv_text_no_dates = re.sub(r'\d{4}-\d{2}-\d{2}', '', csv_text)
+    csv_text_no_times = re.sub(r'\d{2}:\d{2}:\d{2}', '', csv_text_no_dates)
+
+    csv_text =  csv_text_no_times[:1000]
+
 
     # Retrieve or create user-specific memory
     if user_id not in user_memories:
-        user_memories[user_id] = ConversationSummaryBufferMemory(
-            memory_key=user_id, llm=llm, return_messages=True, max_token_limit=4000
-        )
+        user_memories[user_id] = ConversationSummaryBufferMemory(ai_prefix="",human_prefix="",memory_key=user_id, llm=llm, return_messages=True, max_token_limit=4000)
+
     memory = user_memories[user_id]
 
     # Create LLMChain conversation instance
@@ -191,7 +230,7 @@ def process_uploaded_csv(file_id, user_id):
             HumanMessagePromptTemplate.from_template("{input}")
         ]
     )
-    conversation = LLMChain(llm=llm, prompt=prompt, verbose=True, memory=memory)
+    conversation = LLMChain(llm=llm, prompt=prompt, verbose=True, memory=memory )
 
     # Generate response with CSV content in the prompt
     response = generate_response_llmchain_with_csv(
@@ -203,13 +242,13 @@ def process_uploaded_csv(file_id, user_id):
 def generate_response_llmchain_with_csv(csv_text, conversation, memory):
     memory.load_memory_variables({})
 
-    input_prompt = 'Dont start with Ai or Human, now here is my prompt: ' + csv_text + " [/INST]"
+    input_prompt = 'Help me manage my expenses in this csv ' + csv_text + " [/INST]"
     ans = conversation.predict(input=input_prompt)
     response = ans  # You can process or modify the response here if needed
     return response
 
 def generate_response_llmchain(prompt,conversation,memory):
-    
+
     memory.load_memory_variables({})
 
     input_prompt = 'Dont start with Ai or Human,now here is my prompt:' +prompt + " [/INST]"
@@ -217,5 +256,6 @@ def generate_response_llmchain(prompt,conversation,memory):
     ans = conversation.predict(input=input_prompt)
     response = ans  # You can process or modify the response here if needed
     return response
+
 # Start the bot's polling loop
 bot.infinity_polling()
