@@ -44,43 +44,24 @@ role_prompt = (
     "<s>\n"
     "<<SYS>> \n"
     "You are FINGU Financial Assistant.\n"
-    "Your role is to provide useful and practical financial advice, and you can assist in creating financial plans.\n" 
-    "You should respond within context only.\n"
+    "Your top goal is to improve user's finances.\n"
+    "Your personality will adapt to the situation.\n"
     "Please consider the chat history provided as a reference to better understand the user's context and needs.\n"
     "Keep in mind that your responses should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Make sure your answers are socially unbiased and positive in nature.\n"
-    "Feel free to ask clarifying questions if the user's query is unclear.\n"
     "If a question doesn't make sense or isn't factually coherent, explain why instead of providing incorrect information.\n"
     "Remember, the chat history is provided to assist you in giving relevant advice.\n"
     "The following lines will be the chat history in roles as 'AI:' and 'Human:' you will use those to take relevant information, the last 'Human:' line is the real prompt\n "
-    "Stay within the 1040-character limit.\n"
-    "If user asks to respond with csv file or needs something formatted as csv mention that he should use /csv command And always type any csv list formatted as csv \n "
-    "You should respond normally without the Ai and Human roles i use, i will use them you shouldn't"
+    "You should respond normally without the Ai and Human roles i use, i will use them you shouldn't.\n"
+    "You will always use csv format if you see the keyword csv.\n "
     "<</SYS>>\n"
     
     "[INST]\n"
 
 )
 
-prompt = ChatPromptTemplate(
-    messages=[
-        SystemMessagePromptTemplate.from_template(
-            role_prompt
-        ),
-        # The `variable_name` here is what must align with memory
-        MessagesPlaceholder(variable_name="history"),
-        HumanMessagePromptTemplate.from_template("{input}")
-    ]
-)
+
 # memory = ConversationSummaryBufferMemory(llm=llm, max_token_limit=4000)
-memory =  ConversationSummaryBufferMemory(memory_key="history", llm=llm , return_messages=True , max_token_limit=4000)
 
-
-conversation = LLMChain(
-    llm=llm,
-    prompt=prompt,
-    verbose=True,
-    memory=memory
-)
 # Set up the Telegram bot
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -114,14 +95,15 @@ def save_response_to_csv(response_text):
             csvwriter.writerow([header])  # Write header
             csvwriter.writerows(data)  # Write data
 
+user_memories = {}
 
 @bot.message_handler(commands=['csv'])
 def save_response_as_csv(message):
     if message.reply_to_message and message.reply_to_message.text:
         input_prompt = message.reply_to_message.text
-        response = generate_response_llmchain(input_prompt)
+        # response = generate_response_llmchain(input_prompt)
         
-        save_response_to_csv(response)
+        save_response_to_csv(input_prompt)
         
         # Send the CSV file with the LLMChain response
         with open('response.csv', 'rb') as csv_file:
@@ -130,6 +112,7 @@ def save_response_as_csv(message):
 # Handle start and hello commands
 @bot.message_handler(commands=['start', 'hello'])
 def send_welcome(message):
+    
     welcome_message = (
         "Welcome to FINGU Financial Assistant!\n"
         "I'm here to help you with financial queries.\n"
@@ -139,14 +122,39 @@ def send_welcome(message):
 
 @bot.message_handler(func=lambda msg: True)
 def handle_message(message):
+    user_id = message.from_user.id 
+    
+    if user_id not in user_memories:
+        user_memories[user_id] = ConversationSummaryBufferMemory(memory_key=user_id, llm=llm, return_messages=True, max_token_limit=4000)
+    
+    memory = user_memories[user_id]
+    # memory =  ConversationSummaryBufferMemory(memory_key=user_id, llm=llm , return_messages=True , max_token_limit=4000)
+
+    prompt = ChatPromptTemplate(    
+    messages=[
+        SystemMessagePromptTemplate.from_template(
+            role_prompt
+        ),
+        # The `variable_name` here is what must align with memory
+        MessagesPlaceholder(variable_name=user_id),
+        HumanMessagePromptTemplate.from_template("{input}")
+    ]
+)
+    conversation = LLMChain(
+    llm=llm,
+    prompt=prompt,
+    verbose=True,
+    memory=memory
+)
+
     if message.text:
         input_text = message.text
-        response = generate_response_llmchain(input_text)
+        response = generate_response_llmchain(input_text,conversation,memory)
         bot.reply_to(message, response)
+    
 
-
-
-def generate_response_llmchain(prompt):
+def generate_response_llmchain(prompt,conversation,memory):
+    
     memory.load_memory_variables({})
 
     input_prompt = 'Dont start with Ai or Human,now here is my prompt:' +prompt + " [/INST]"
