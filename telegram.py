@@ -1,7 +1,6 @@
 import telebot
 from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
 from clarifai_grpc.grpc.api import  service_pb2_grpc
-from dotenv import load_dotenv
 from langchain.llms import Clarifai
 from langchain.memory import ConversationSummaryBufferMemory
 from langchain.chains import LLMChain
@@ -17,7 +16,6 @@ import spacy
 import os
 
 
-load_dotenv()
 nlp = spacy.load("en_core_web_sm")
 
 
@@ -86,7 +84,7 @@ def save_response_to_csv(response_text):
             cells = [cell.strip() for cell in line.split(separator)]
             if len(cells) >= 2:
                 if header is None:
-                    header = cells[1]
+                    header = cells[0]
                 data.append(cells[1:])  # Extract all cells
 
     if header is not None:
@@ -152,6 +150,63 @@ def handle_message(message):
         response = generate_response_llmchain(input_text,conversation,memory)
         bot.reply_to(message, response)
     
+
+
+
+@bot.message_handler(content_types=['document'])
+def handle_document(message):
+    # Check if the uploaded document is a CSV file
+    if message.document.mime_type == 'text/csv':
+        # Process the uploaded CSV file and use its content in the LLMChain prompt
+        response = process_uploaded_csv(
+            message.document.file_id, message.from_user.id
+        )
+        bot.reply_to(message, response)
+    else:
+        bot.reply_to(message, "Please upload a valid CSV file.")
+
+def process_uploaded_csv(file_id, user_id):
+    # Get file information
+    file_info = bot.get_file(file_id)
+    file_path = file_info.file_path
+
+    # Download the CSV file
+    downloaded_file = bot.download_file(file_path)
+
+    # Convert the CSV content to text format
+    csv_text = downloaded_file.decode('utf-8')
+
+    # Retrieve or create user-specific memory
+    if user_id not in user_memories:
+        user_memories[user_id] = ConversationSummaryBufferMemory(
+            memory_key=user_id, llm=llm, return_messages=True, max_token_limit=4000
+        )
+    memory = user_memories[user_id]
+
+    # Create LLMChain conversation instance
+    prompt = ChatPromptTemplate(
+        messages=[
+            SystemMessagePromptTemplate.from_template(role_prompt),
+            MessagesPlaceholder(variable_name=user_id),
+            HumanMessagePromptTemplate.from_template("{input}")
+        ]
+    )
+    conversation = LLMChain(llm=llm, prompt=prompt, verbose=True, memory=memory)
+
+    # Generate response with CSV content in the prompt
+    response = generate_response_llmchain_with_csv(
+        csv_text, conversation, memory
+    )
+
+    return response
+
+def generate_response_llmchain_with_csv(csv_text, conversation, memory):
+    memory.load_memory_variables({})
+
+    input_prompt = 'Dont start with Ai or Human, now here is my prompt: ' + csv_text + " [/INST]"
+    ans = conversation.predict(input=input_prompt)
+    response = ans  # You can process or modify the response here if needed
+    return response
 
 def generate_response_llmchain(prompt,conversation,memory):
     
