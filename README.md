@@ -46,13 +46,15 @@ The bot's functionality is orchestrated using the following steps:
 
 2. Install the required packages using `pip install -r requirements.txt`.
 
-3. Set up a Telegram bot and obtain the API token.
+3. Run python -m spacy download en_core_web_sm
 
-4. Set up Clarifai and obtain the necessary credentials.
+4. Set up a Telegram bot and obtain the API token.
 
-5. Replace the placeholders for Clarifai credentials and Telegram bot token in the code.
+5. Set up Clarifai and obtain the necessary credentials.
 
-6. Run the bot script using `python telegram.py`.
+6. Replace the placeholders for Clarifai credentials and Telegram bot token in the code.
+
+7. Run the bot script using `python telegram.py`.
 
 ## Conclusion
 
