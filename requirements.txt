@@ -1,0 +1,7 @@
+clarifai_grpc==9.7.3
+firebase_admin==6.2.0
+langchain==0.0.274
+pyTelegramBotAPI==4.13.0
+pyTelegramBotAPI==4.13.0
+python-dotenv==1.0.0
+spacy==3.6.1
