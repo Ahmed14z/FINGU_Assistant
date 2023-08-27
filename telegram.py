@@ -36,7 +36,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 commands = [
     telebot.types.BotCommand(command="/start", description="Start the bot"),
-    # telebot.types.BotCommand(command="/csv", description="Convert message to CSV"),
+    telebot.types.BotCommand(command="/csv", description="Convert message to CSV"),
     telebot.types.BotCommand(command="/newchat", description="Clear chat memory"),
 
 ]
